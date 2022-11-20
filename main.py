@@ -6,7 +6,7 @@ def out_table(N, M, mx):
     k_l,k_r=map(int,input("Введите пределы изменения длины серий через запятую (левый,правый) - ").split(','))
     shag=int(input("Введите шаг изменения длины серий (целое число) - "))
     lst=[[],[],[]]
-    for k in range(k_l,k_r,shag):
+    for k in range(k_l,k_r+1,shag):
 
         out_lst=razl(N, M, mx, k,0)   
         lst[0].append(out_lst[0])
@@ -25,12 +25,16 @@ def out_table(N, M, mx):
         print(df)
   
 
-def razl(N,M,mx,k,out=1):
+def razl(N,M,mx,k,out=1):  
+    '''
+    Определение разладки сигнала
+    '''
     def opr_razl(x,med,k,N):
         global Tlt
         k_p=0  # Число положительных серий
         k_n=0  # Число положительных серий
         Tlt=[] # Моменты времени ложных тревог
+        i=0
         for i in range(len(x)):    
             
             if x[i]>=med:
@@ -57,11 +61,11 @@ def razl(N,M,mx,k,out=1):
         return i
     
     
-    
+    random.seed(1)
     x=[]
-    x=[random.gauss(0,5) for i in range(N)]
+    x=[random.gauss(0,1) for i in range(N)]
     med=median(x)
-    x.extend([random.gauss(mx,5) for i in range(N,M)])
+    x.extend([random.gauss(mx,1) for i in range(N,M)])
 
     lt=opr_razl(x, med, k, N)
 
@@ -99,11 +103,12 @@ def razl(N,M,mx,k,out=1):
         out_lst=[k,mean_razn,lt-N]
         return out_lst
 
+
+
 st=input("Определение разладки / Построить таблицу зависимостей - 'y/n' ")
 N=int(input("Введите момент времени разладки - "))
 M=int(input("Введите общее число моментов времени - "))
 mx=float(input("Введите мат ожидание разладки(исходное=0) - "))
-
 
 if st=='y':
     k=int(input("Введите длину серий успехов - "))
