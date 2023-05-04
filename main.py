@@ -37,6 +37,13 @@ def plot_auto_corr(timeSeries,k):
     plt.subplot(1, 2, 1)
     plt.bar(range(1,len(timeSeriestimeSeries)+1),timeSeriestimeSeries[0])
     plt.title("График функции автокорреляции x")
+    print(f'Тау к = {abs(sum(list(timeSeriestimeSeries[0])))}')
+    print(list(timeSeriestimeSeries[0]))
+    for i,v in enumerate(list(timeSeriestimeSeries[0])):
+        if v<=0.05 and v>=-0.05:
+            print(f'Тау mk = {i}')
+            break
+
 
 
 def mean_of_razl(m, N, L, k, mx = 0):
@@ -126,9 +133,9 @@ def razl(N, L, k, mx = 0, out=1):
                 elif x[i] < med:
                     k_p = 0
             else:
-                if x[i] == 0.5:
+                if x[i] == 1:
                     k_p += 1
-                elif x[i] == -0.5:
+                elif x[i] == 0:
                     k_p = 0
             if i == N:
                 k_p = 0
@@ -311,7 +318,7 @@ def main():
 
         elif st == 2:
             print(f'B1={b1}, B2={b2}')
-            razl(N, L, 1000, mx = mx)
+            # razl(N, L, 1000, mx = mx)
             out_table(N, L, mx = mx)
 
 

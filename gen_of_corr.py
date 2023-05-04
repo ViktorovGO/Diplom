@@ -99,7 +99,7 @@ def get_corr_row(N, lamida1 = -0.2, lamida2 = 0.5):
                 s2.append(1)
                 x.append(0)
                 continue
-    return [i-0.5 for i in x]
+    return x
 # print(x)
 # xx=np.array(x)
 # def RF(lamida3,lamida4):
