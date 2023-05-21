@@ -185,15 +185,20 @@ def razl(N, L, k, mx = 0, out=1):
         Tlt = []  # Моменты времени ложных тревог
         Tr = []  # Моменты реальных тревог
         for i in range(len(x)):
-            if not bin:
+            if not corr:
                 if x[i] >= med:
                     k_p += 1
                 elif x[i] < med:
                     k_p = 0
-            else:
+            elif corr and bin:
                 if x[i] == 1:
                     k_p += 1
                 elif x[i] == 0:
+                    k_p = 0
+            else:
+                if x[i] >= med:
+                    k_p += 1
+                elif x[i] < med:
                     k_p = 0
             if i == N:
                 k_p = 0
@@ -207,7 +212,7 @@ def razl(N, L, k, mx = 0, out=1):
         return Tr
     if not corr:
         x = []
-        x = [(random.uniform(0,1)-0.5)*1 for i in range(N)]
+        x = [(random.uniform(0,1))*1 for i in range(N)]
         med = median(x)
         x.extend([(random.uniform(0,1)+mx-0.5)*1 for i in range(N, L)])
     
@@ -219,10 +224,9 @@ def razl(N, L, k, mx = 0, out=1):
             x.extend(get_corr_row(L-N+1, lamida1 = b1, lamida2 = b2))
         else:
             x_all = get_correlation(transform_signal([(random.uniform(0,1))*1 for i in range(L)], L), b1 = b1, b2 = b2)
-            x = x_all[:N]
+            x = [i+0.5 for i in x_all[:N]]
             med = median(x)
             x.extend([i+mx for i in x_all[N:]])
-
     Tr = []
     Tr = opr_razl(x, med, k, N)
 
@@ -251,8 +255,10 @@ def razl(N, L, k, mx = 0, out=1):
         else:
             print("Ложные тревоги отсутствуют")
         print(f'Среднее время между ложными тревогами - {mean_Tlt}')
-        if not bin:
+        if len(Tr)!=0:
             print(f'Время запаздывания - {Tr[0]-N}')
+        else:
+            print("Реальные тревоги отсутствуют")
 
         x_dot = []      # Значения ряда в моменты реальных тревог
         for i in Tlt:
@@ -275,17 +281,19 @@ def razl(N, L, k, mx = 0, out=1):
             axs[2].set_ylabel('Число наблюдений', fontsize=10)
 
         else:
-            plot_auto_corr(np.array(x),20)
-            fig, axs = plt.subplots(1,2)
-            axs[1].hist(x, bins = 2)
+            if corr:
+                plot_auto_corr(np.array(x),20)
+            fig, axs = plt.subplots(1,3)
+            axs[1].hist(x[:N], bins = 20)
             axs[1].set_title('Гистограмма исходного сигнала', fontsize=15)
             axs[1].set_ylabel('Число наблюдений', fontsize=10)
+            axs[2].hist(x[N:L], bins = 20)
+            axs[2].set_title('Гистограмма сигнала с разладкой', fontsize=15)
+            axs[2].set_ylabel('Число наблюдений', fontsize=10)
         axs[0].plot(range(len(x)), x)
         axs[0].plot(Tlt, x_dot, '.', label="Ложная тревога",
                  color="r", markersize=10)
-            
-        if not bin:
-            axs[0].plot(Tr, x_dot_real, ".", label="Реальная тревога",
+        axs[0].plot(Tr, x_dot_real, ".", label="Реальная тревога",
                     markersize=10, color="0")
         axs[0].axhline(med, color='y', label='Медиана до разладки')
         axs[0].legend()
@@ -356,7 +364,7 @@ def main():
         N = int(input("Введите с какого отсчёта пойдёт разладка - "))
         L = int(input("Введите общее число отсчётов - "))
         mx = float(input(
-        "Введите медиану процесса начиная с момента заданной разладки(исходная=0) - "))
+        "Введите медиану процесса начиная с момента заданной разладки(исходная=0.5) - "))
 
         if st == 1:
             k = int(input("Введите длину серий успехов - "))
@@ -371,17 +379,18 @@ def main():
         global bin
         bin = False
         st = 0    
-        while st not in [1, 2]:
+        while st not in [1, 2, 3]:
             st = int(input("""
             1-Определение разладки  
             2-Построить таблицу зависимостей 
+            3-Определение оптимального k для заданного Tlt' 
             """))
         global b1, b2
         b1, b2 = map(float, input("Введите коэффициенты для рекуррентного соотношения через запятую (b1,b2) - ").split(','))
         if not bin:
             N = int(input("Введите с какого отсчёта пойдёт разладка - "))
             mx = float(input(
-            "Введите медиану процесса начиная с момента заданной разладки(исходная=0) - "))
+            "Введите медиану процесса начиная с момента заданной разладки(исходная=0.5) - "))
         L = int(input("Введите общее число отсчётов - "))
         if st == 1:
             k = int(input("Введите длину серий успехов - "))
@@ -392,7 +401,9 @@ def main():
             print(f'B1={b1}, B2={b2}')
             # razl(N, L, 1000, mx = mx)
             out_table(N, L, mx = mx)
-
+        elif st == 3:
+            Tlt = float(input("Введите необходимое значение Tlt - "))
+            opt_k_for_Tlt(N, L, Tlt, mx = mx)
 
 
 if __name__ == "__main__":
