@@ -1,9 +1,63 @@
 import random
 import matplotlib.pyplot as plt
-from statistics import mean, median
+from statistics import mean, median, stdev
 from gen_of_corr import get_corr_row
 import pandas as pd
 import numpy as np
+import math 
+
+def transform_signal(uniform_signal, N, m=None):
+    """ 
+    Преобразование равномерного сигнала в гауссовский
+    """
+
+    gaussian_signal = []
+    for i in range(0, N, 2):
+        
+        u1 = uniform_signal[i]
+        u2 = uniform_signal[i+1]
+        
+        r = math.sqrt(-2 * math.log(u1))
+        theta = 2 * math.pi * u2
+        z1 = r * math.cos(theta)
+        z2 = r * math.sin(theta)
+
+        # # добавляем математическое ожидание (разладка)
+        # if m is not None:
+        #     if i >= m:
+        #         z1 += 1 
+        #         z2 += 1
+
+        gaussian_signal.append(z1)
+        gaussian_signal.append(z2)
+        
+    return gaussian_signal
+
+def get_correlation(gaussian_signal, b1, b2):
+    """
+    Введение корреляции в гауссовский сигнал
+    """
+    corr_gaussian_signal = []
+    x1 = b1 * 0 + b2 * 0 + gaussian_signal[0]
+    x2 = b1 * x1 + b2 * 0 + gaussian_signal[1]
+    corr_gaussian_signal.append(x1)
+    corr_gaussian_signal.append(x2)
+
+    for i in range(2, len(gaussian_signal)):
+        
+        e = gaussian_signal[i]
+        x = b1 * corr_gaussian_signal[i-1] + b2 * corr_gaussian_signal[i-2] + e
+        corr_gaussian_signal.append(x)
+
+    # corr_gaussian_signal = corr_gaussian_signal[2:]
+    
+    # нормализация
+    mn = mean(corr_gaussian_signal)
+    std = stdev(corr_gaussian_signal)
+    corr_gaussian_signal = ((np.array(corr_gaussian_signal) - mn) / std).tolist()
+
+    return corr_gaussian_signal
+
 def get_auto_corr(timeSeries,k):
     '''
     Descr:输入：时间序列timeSeries，滞后阶数k
@@ -25,6 +79,7 @@ def get_auto_corr(timeSeries,k):
         temp = (timeSeries1[i]-timeSeries_mean)*(timeSeries2[i]-timeSeries_mean)/timeSeries_var
         auto_corr = auto_corr + temp
     return auto_corr
+
 def plot_auto_corr(timeSeries,k):
     '''
     Descr:需要计算自相关函数get_auto_corr(timeSeries,k)
@@ -34,15 +89,18 @@ def plot_auto_corr(timeSeries,k):
     timeSeriestimeSeries = pd.DataFrame(range(k))
     for i in range(1,k+1):
         timeSeriestimeSeries.loc[i-1] =get_auto_corr(timeSeries,i)
-    plt.subplot(1, 2, 1)
-    plt.bar(range(1,len(timeSeriestimeSeries)+1),timeSeriestimeSeries[0])
-    plt.title("График функции автокорреляции x")
-    print(f'Тау к = {abs(sum(list(timeSeriestimeSeries[0])))}')
-    print(list(timeSeriestimeSeries[0]))
     for i,v in enumerate(list(timeSeriestimeSeries[0])):
         if v<=0.05 and v>=-0.05:
+            Tay = i
             print(f'Тау mk = {i}')
+            print(f'Тау к = {abs(sum(list(timeSeriestimeSeries[0][:Tay])))}')
             break
+    plt.subplot(1, 2, 1)
+    lst = plt.bar(range(1,len(timeSeriestimeSeries)+1),timeSeriestimeSeries[0])
+    lst[Tay-1].set_color('r')
+    plt.title("Корреляционная функция")
+    
+    
 
 
 
@@ -127,7 +185,7 @@ def razl(N, L, k, mx = 0, out=1):
         Tlt = []  # Моменты времени ложных тревог
         Tr = []  # Моменты реальных тревог
         for i in range(len(x)):
-            if not corr:
+            if not bin:
                 if x[i] >= med:
                     k_p += 1
                 elif x[i] < med:
@@ -152,11 +210,19 @@ def razl(N, L, k, mx = 0, out=1):
         x = [(random.uniform(0,1)-0.5)*1 for i in range(N)]
         med = median(x)
         x.extend([(random.uniform(0,1)+mx-0.5)*1 for i in range(N, L)])
+    
     else:
         
-        x = get_corr_row(N+1, lamida1 = b1, lamida2 = b2)
-        med = median(x)
-        x.extend(get_corr_row(L-N+1, lamida1 = b1, lamida2 = b2))
+        if bin:
+            x = get_corr_row(N+1, lamida1 = b1, lamida2 = b2)
+            med = median(x)
+            x.extend(get_corr_row(L-N+1, lamida1 = b1, lamida2 = b2))
+        else:
+            x_all = get_correlation(transform_signal([(random.uniform(0,1))*1 for i in range(L)], L), b1 = b1, b2 = b2)
+            x = x_all[:N]
+            med = median(x)
+            x.extend([i+mx for i in x_all[N:]])
+
     Tr = []
     Tr = opr_razl(x, med, k, N)
 
@@ -185,7 +251,7 @@ def razl(N, L, k, mx = 0, out=1):
         else:
             print("Ложные тревоги отсутствуют")
         print(f'Среднее время между ложными тревогами - {mean_Tlt}')
-        if not corr:
+        if not bin:
             print(f'Время запаздывания - {Tr[0]-N}')
 
         x_dot = []      # Значения ряда в моменты реальных тревог
@@ -197,7 +263,9 @@ def razl(N, L, k, mx = 0, out=1):
             x_dot_real.append(x[i])
         
         
-        if not corr:
+        if not bin:
+            if corr:
+                plot_auto_corr(np.array(x[:N]), 20)  
             fig, axs = plt.subplots(1,3)
             axs[1].hist(x[:N], bins = 10)
             axs[1].set_title('Гистограмма исходного сигнала', fontsize=15)
@@ -216,7 +284,7 @@ def razl(N, L, k, mx = 0, out=1):
         axs[0].plot(Tlt, x_dot, '.', label="Ложная тревога",
                  color="r", markersize=10)
             
-        if not corr:
+        if not bin:
             axs[0].plot(Tr, x_dot_real, ".", label="Реальная тревога",
                     markersize=10, color="0")
         axs[0].axhline(med, color='y', label='Медиана до разладки')
@@ -224,7 +292,7 @@ def razl(N, L, k, mx = 0, out=1):
         plt.show()
         
     else:
-        if not corr:
+        if not bin:
             out_lst = [k, mean_Tlt, Tr[0]-N, Tr[0]]
         else:
             out_lst = [k, mean_Tlt, 0, 0]
@@ -300,6 +368,8 @@ def main():
             Tlt = float(input("Введите необходимое значение Tlt - "))
             opt_k_for_Tlt(N, L, Tlt, mx = mx)
     else:
+        global bin
+        bin = False
         st = 0    
         while st not in [1, 2]:
             st = int(input("""
@@ -308,9 +378,11 @@ def main():
             """))
         global b1, b2
         b1, b2 = map(float, input("Введите коэффициенты для рекуррентного соотношения через запятую (b1,b2) - ").split(','))
+        if not bin:
+            N = int(input("Введите с какого отсчёта пойдёт разладка - "))
+            mx = float(input(
+            "Введите медиану процесса начиная с момента заданной разладки(исходная=0) - "))
         L = int(input("Введите общее число отсчётов - "))
-        N = L
-        mx = 0
         if st == 1:
             k = int(input("Введите длину серий успехов - "))
             print(f'B1={b1}, B2={b2}')
