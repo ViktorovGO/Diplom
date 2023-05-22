@@ -97,7 +97,7 @@ def plot_auto_corr(timeSeries,k):
             break
     plt.subplot(1, 2, 1)
     lst = plt.bar(range(1,len(timeSeriestimeSeries)+1),timeSeriestimeSeries[0])
-    lst[Tay-1].set_color('r')
+    lst[Tay].set_color('r')
     plt.title("Корреляционная функция")
     
     
