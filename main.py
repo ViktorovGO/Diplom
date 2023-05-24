@@ -89,15 +89,19 @@ def plot_auto_corr(timeSeries,k):
     timeSeriestimeSeries = pd.DataFrame(range(k))
     for i in range(1,k+1):
         timeSeriestimeSeries.loc[i-1] =get_auto_corr(timeSeries,i)
-    for i,v in enumerate(list(timeSeriestimeSeries[0])):
+    lst = list(timeSeriestimeSeries[0])
+    Tay = len(lst)
+    for i,v in enumerate(lst.__reversed__()):
         if v<=0.05 and v>=-0.05:
-            Tay = i
-            print(f'Тау mk = {i}')
-            print(f'Тау к = {abs(sum(list(timeSeriestimeSeries[0][:Tay])))}')
+            Tay = len(lst)-i
+            
+        if v>0.05 or v<-0.05:
             break
+    print(f'Тау mk = {Tay}')
+    print(f'Тау к = {abs(sum(list(timeSeriestimeSeries[0][:Tay])))}')
     plt.subplot(1, 2, 1)
     lst = plt.bar(range(1,len(timeSeriestimeSeries)+1),timeSeriestimeSeries[0])
-    lst[Tay].set_color('r')
+    lst[Tay-1].set_color('r')
     plt.title("Корреляционная функция")
     
     
@@ -212,9 +216,9 @@ def razl(N, L, k, mx = 0, out=1):
         return Tr
     if not corr:
         x = []
-        x = [(random.uniform(0,1))*1 for i in range(N)]
+        x = [random.normalvariate(0.5,1) for i in range(N)]
         med = median(x)
-        x.extend([(random.uniform(0,1)+mx-0.5)*1 for i in range(N, L)])
+        x.extend([random.normalvariate(mx,1) for i in range(N, L)])
     
     else:
         
