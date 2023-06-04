@@ -108,7 +108,7 @@ def plot_auto_corr(timeSeries,k):
 
 
 
-def mean_of_razl(m, N, L, k, mx = 0):
+def mean_of_razl(m, N, L, k, mx = 0, out = 0):
     """
     Усреднение по m значениям
     """
@@ -130,7 +130,7 @@ def mean_of_razl(m, N, L, k, mx = 0):
         res_list[1] = mean(res_list[1])
     else:
         res_list[1] = "-"
-
+    
     res_list[2] = int(mean(res_list[2]))
     res_list[3] = int(mean(res_list[3]))
 
@@ -145,15 +145,14 @@ def mean_of_razl(m, N, L, k, mx = 0):
     return lst
 
 
-def out_table(N, L, mx = 0):
+def out_table(N, L, mx = 0, m = 0):
 
     k_l, k_r = map(int, input("Введите пределы изменения длины серий через запятую (левый,правый) - ").split(','))
     shag = int(input("Введите шаг изменения длины серий (целое число) - "))
-    m = int(input("Введите по скольким значениям проводить усреднение - "))
     lst = [[], [], [], []]
 
     for i in range(k_l, k_r+1, shag):
-        out_lst = mean_of_razl(m, N, L, i, mx = mx)
+        out_lst = mean_of_razl(m, N, L, i, mx = mx, out = 0)
         lst[0].append(out_lst[0][0])
         lst[1].append(out_lst[1][0])
         lst[2].append(out_lst[2][0])
@@ -194,7 +193,7 @@ def razl(N, L, k, mx = 0, out=1):
                     k_p += 1
                 elif x[i] < med:
                     k_p = 0
-            elif corr and bin:
+            elif corr and bin_1:
                 if x[i] == 1:
                     k_p += 1
                 elif x[i] == 0:
@@ -222,7 +221,7 @@ def razl(N, L, k, mx = 0, out=1):
     
     else:
         
-        if bin:
+        if bin_1:
             x = get_corr_row(N+1, lamida1 = b1, lamida2 = b2)
             med = median(x)
             x.extend(get_corr_row(L-N+1, lamida1 = b1, lamida2 = b2))
@@ -273,7 +272,7 @@ def razl(N, L, k, mx = 0, out=1):
             x_dot_real.append(x[i])
         
         
-        if not bin:
+        if not bin_1:
             if corr:
                 plot_auto_corr(np.array(x[:N]), 20)  
             fig, axs = plt.subplots(1,3)
@@ -304,7 +303,8 @@ def razl(N, L, k, mx = 0, out=1):
         plt.show()
         
     else:
-        if not bin:
+        
+        if not bin_1:
             out_lst = [k, mean_Tlt, Tr[0]-N, Tr[0]]
         else:
             out_lst = [k, mean_Tlt, 0, 0]
@@ -315,7 +315,7 @@ def opt_k_for_Tlt(N, L, Tlt, mx = 0):
     """
     Нахождение k, удовлетворяющего заданному Tlt
     """
-    m = int(input("Введите по скольким значениям проводить усреднение - "))
+    
     k = 1
     out_lst = mean_of_razl(m, N, L, k, mx = mx)
     delta = abs(Tlt-out_lst[1][0])
@@ -349,9 +349,12 @@ def opt_k_for_Tlt(N, L, Tlt, mx = 0):
 
 def main():
     global corr
+    global bin_1
+    bin_1 = True
     st = ""
     while st not in ["y", "Y", "n", "N"]:
         st = input("Исследовать коррелированный сигнал? 'y/n' ")
+    m = int(input("Введите по скольким значениям проводить усреднение - "))
     if st in ['Y','y']:
         corr = True
     else:
@@ -372,16 +375,23 @@ def main():
 
         if st == 1:
             k = int(input("Введите длину серий успехов - "))
-            razl(N, L, k , mx = mx)
+            razl(N, L, k, mx = mx)
+            lst = mean_of_razl(m, N, L, k, mx = mx)
+            print("Результаты моделирования:")
+            print(f'Среднее время между ложными тревогами - {lst[1]}')
+            if len(lst[2])!=0:
+                print(f'Среднее время запаздывания - {lst[2]}')
+            else:
+                print("Реальные тревоги отсутствуют")
 
         elif st == 2:
-            out_table(N, L, mx = mx)
+            out_table(N, L, mx = mx, m = m)
+            
         elif st == 3:
             Tlt = float(input("Введите необходимое значение Tlt - "))
             opt_k_for_Tlt(N, L, Tlt, mx = mx)
     else:
-        global bin
-        bin = False
+        
         st = 0    
         while st not in [1, 2, 3]:
             st = int(input("""
@@ -391,20 +401,34 @@ def main():
             """))
         global b1, b2
         b1, b2 = map(float, input("Введите коэффициенты для рекуррентного соотношения через запятую (b1,b2) - ").split(','))
-        if not bin:
+        if not bin_1:
             N = int(input("Введите с какого отсчёта пойдёт разладка - "))
             mx = float(input(
             "Введите медиану процесса начиная с момента заданной разладки(исходная=0.5) - "))
+
         L = int(input("Введите общее число отсчётов - "))
+        
+        if bin_1:
+            N = L
+            mx = 0
+
         if st == 1:
             k = int(input("Введите длину серий успехов - "))
             print(f'B1={b1}, B2={b2}')
-            razl(N, L, k , mx = mx)
+            razl(N, L, k, mx = mx)
+            mean_of_razl(m, N, L, k, mx = mx)
+            lst = mean_of_razl(m, N, L, k, mx = mx)
+            print("Результаты моделирования:")
+            print(f'Среднее время между ложными тревогами - {lst[1]}')
+            if len(lst[2])!=0:
+                print(f'Среднее время запаздывания - {lst[2]}')
+            else:
+                print("Реальные тревоги отсутствуют")
 
         elif st == 2:
             print(f'B1={b1}, B2={b2}')
             # razl(N, L, 1000, mx = mx)
-            out_table(N, L, mx = mx)
+            out_table(N, L, mx = mx, m = m)
         elif st == 3:
             Tlt = float(input("Введите необходимое значение Tlt - "))
             opt_k_for_Tlt(N, L, Tlt, mx = mx)
