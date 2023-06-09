@@ -6,12 +6,12 @@ import pandas as pd
 import numpy as np
 import math 
 
-def transform_signal(uniform_signal, N, m=None):
+def unif_to_gauss(uniform_signal, N, m=None):
     """ 
     Преобразование равномерного сигнала в гауссовский
     """
 
-    gaussian_signal = []
+    norm_signal = []
     for i in range(0, N, 2):
         
         u1 = uniform_signal[i]
@@ -28,35 +28,35 @@ def transform_signal(uniform_signal, N, m=None):
         #         z1 += 1 
         #         z2 += 1
 
-        gaussian_signal.append(z1)
-        gaussian_signal.append(z2)
+        norm_signal.append(z1)
+        norm_signal.append(z2)
         
-    return gaussian_signal
+    return norm_signal
 
-def get_correlation(gaussian_signal, b1, b2):
+def add_correlation(norm_signal, b1, b2):
     """
     Введение корреляции в гауссовский сигнал
     """
-    corr_gaussian_signal = []
-    x1 = b1 * 0 + b2 * 0 + gaussian_signal[0]
-    x2 = b1 * x1 + b2 * 0 + gaussian_signal[1]
-    corr_gaussian_signal.append(x1)
-    corr_gaussian_signal.append(x2)
+    corr_norm_signal = []
+    x1 = b1 * 0 + b2 * 0 + norm_signal[0]
+    x2 = b1 * x1 + b2 * 0 + norm_signal[1]
+    corr_norm_signal.append(x1)
+    corr_norm_signal.append(x2)
 
-    for i in range(2, len(gaussian_signal)):
+    for i in range(2, len(norm_signal)):
         
-        e = gaussian_signal[i]
-        x = b1 * corr_gaussian_signal[i-1] + b2 * corr_gaussian_signal[i-2] + e
-        corr_gaussian_signal.append(x)
+        e = norm_signal[i]
+        x = b1 * corr_norm_signal[i-1] + b2 * corr_norm_signal[i-2] + e
+        corr_norm_signal.append(x)
 
-    # corr_gaussian_signal = corr_gaussian_signal[2:]
+    # corr_norm_signal = corr_norm_signal[2:]
     
-    # нормализация
-    mn = mean(corr_gaussian_signal)
-    std = stdev(corr_gaussian_signal)
-    corr_gaussian_signal = ((np.array(corr_gaussian_signal) - mn) / std).tolist()
+    # стандратизация
+    mn = mean(corr_norm_signal)
+    std = stdev(corr_norm_signal)
+    corr_norm_signal = ((np.array(corr_norm_signal) - mn) / std).tolist()
 
-    return corr_gaussian_signal
+    return corr_norm_signal
 
 def get_auto_corr(timeSeries,k):
     '''
@@ -131,8 +131,8 @@ def mean_of_razl(m, N, L, k, mx = 0, out = 0):
     else:
         res_list[1] = "-"
     
-    res_list[2] = int(mean(res_list[2]))
-    res_list[3] = int(mean(res_list[3]))
+    res_list[2] = round(mean(res_list[2]),2)
+    res_list[3] = round(mean(res_list[3]),2)
 
     lst[0].append(res_list[0])
     if (str(type(res_list[1])) == "<class 'float'>"):
@@ -142,6 +142,9 @@ def mean_of_razl(m, N, L, k, mx = 0, out = 0):
     lst[2].append(res_list[2])
     lst[3].append(res_list[3])
     res_list.clear()
+    print("Результаты моделирования:")
+    print(f'Среднее время между ложными тревогами - {lst[1]}')
+    print(f'Среднее время запаздывания - {lst[2]}')
     return lst
 
 
@@ -150,29 +153,42 @@ def out_table(N, L, mx = 0, m = 0):
     k_l, k_r = map(int, input("Введите пределы изменения длины серий через запятую (левый,правый) - ").split(','))
     shag = int(input("Введите шаг изменения длины серий (целое число) - "))
     lst = [[], [], [], []]
-
-    for i in range(k_l, k_r+1, shag):
-        out_lst = mean_of_razl(m, N, L, i, mx = mx, out = 0)
-        lst[0].append(out_lst[0][0])
-        lst[1].append(out_lst[1][0])
-        lst[2].append(out_lst[2][0])
-        lst[3].append(out_lst[3][0])
+    k_lst =[i for i in range(k_l, k_r+1, shag)]
+    df = pd.DataFrame({'k':k_lst})
+    df2 = pd.DataFrame({'k':k_lst})
+    for j in [0.25, 0.5, 1, 1.5, 2, 2.5]:
+        mx = 0.5+j
+        lst = [[], [], [], []]
+        for i in k_lst:
+            out_lst = mean_of_razl(m, N, L, i, mx = mx, out = 0)
+            lst[0].append(out_lst[0][0])
+            lst[1].append(out_lst[1][0])
+            lst[2].append(out_lst[2][0])
+            lst[3].append(out_lst[3][0])
+        
+        df[f'{j}'] = lst[2]
+        df2[f'{j}'] = [round(lst[1][i]/lst[2][i], 2)if lst[1][i]!='-' else '-' for i in range(len(lst[1]))]
+    
+        
 
     print("Исходные данные:")
     print(f"Медиана ряда с разладкой - {mx}")
     print(f"Количество повторений для одного k - {m}")
     print(f"Номер такта номинальной разладки - {N}")
     print(f"Длина сигнала - {L}")
-    df = pd.DataFrame(lst, columns=list(range(1, (len(lst[0])+1))), index=[
-                      "Длина серии", "Среднее время между ложными тревогами", "Среднее время запаздывания", "Номер такта обнаружения разладки"])
+    # df = pd.DataFrame(lst, columns=list(range(1, (len(lst[0])+1))), index=[
+    #                   "Длина серии", "Среднее время между ложными тревогами", "Среднее время запаздывания", "Номер такта обнаружения разладки"])
+
     what = ""
     while what not in ["Y", "y", "N", "n"]:
         what = input(
             "Вывести таблицу в excel / Вывести таблицу в консоль 'y/n' ")
     if what == 'y':
         df.to_excel("table.xlsx", sheet_name="sheet_1", header=False)
+        df2.to_excel("eff.xlsx", sheet_name="sheet_1", header=False)
     elif what == 'n':
         print(df)
+        print(df2)
 
 
 def razl(N, L, k, mx = 0, out=1):
@@ -181,7 +197,7 @@ def razl(N, L, k, mx = 0, out=1):
     '''
     def opr_razl(x, med, k, N):
         '''
-        Определение разладки сигнала
+        Реализация алгоритма случайных блужданий
         '''
         global Tlt
         k_p = 0  # Число положительных серий
@@ -213,24 +229,32 @@ def razl(N, L, k, mx = 0, out=1):
                 k_p = 0
         
         return Tr
-    if not corr:
-        x = []
-        x = [random.normalvariate(0.5,1) for i in range(N)]
-        med = median(x)
-        x.extend([random.normalvariate(mx,1) for i in range(N, L)])
     
-    else:
+    def get_signal(N, L, mx):
+        """
+        Генерация временного ряда
+        """
+        if not corr:
+            x = []
+            x = [random.normalvariate(0.5,1) for i in range(N)]
+            med = median(x)
+            x.extend([random.normalvariate(mx,1) for i in range(N, L)])
         
-        if bin_1:
-            x = get_corr_row(N+1, lamida1 = b1, lamida2 = b2)
-            med = median(x)
-            x.extend(get_corr_row(L-N+1, lamida1 = b1, lamida2 = b2))
         else:
-            x_all = get_correlation(transform_signal([(random.uniform(0,1))*1 for i in range(L)], L), b1 = b1, b2 = b2)
-            x = [i+0.5 for i in x_all[:N]]
-            med = median(x)
-            x.extend([i+mx for i in x_all[N:]])
-    Tr = []
+            
+            if bin_1:
+                x = get_corr_row(N+1, lamida1 = b1, lamida2 = b2)
+                med = median(x)
+                x.extend(get_corr_row(L-N+1, lamida1 = b1, lamida2 = b2))
+            else:
+                x_all = add_correlation(unif_to_gauss([(random.uniform(0,1))*1 for i in range(L)], L), b1 = b1, b2 = b2)
+                x = [i+0.5 for i in x_all[:N]]
+                med = median(x)
+                x.extend([i+mx for i in x_all[N:]])
+        return [x,med]
+    
+    x, med = get_signal(N, L, mx)
+                
     Tr = opr_razl(x, med, k, N)
 
     razn = []  # Список разностей между ложными тревогами
@@ -311,7 +335,7 @@ def razl(N, L, k, mx = 0, out=1):
         return out_lst
 
 
-def opt_k_for_Tlt(N, L, Tlt, mx = 0):
+def opt_k_for_Tlt(N, L, Tlt, mx = 0, m = 1):
     """
     Нахождение k, удовлетворяющего заданному Tlt
     """
@@ -324,7 +348,7 @@ def opt_k_for_Tlt(N, L, Tlt, mx = 0):
         out_lst = mean_of_razl(m, N, L, k, mx = mx)
 
         if str(type(out_lst[1][0])) != "<class 'str'>":
-            print
+            
             delta_next = abs(Tlt-out_lst[1][0])
             if delta_next > delta:
                 k -= 1
@@ -344,13 +368,13 @@ def opt_k_for_Tlt(N, L, Tlt, mx = 0):
     while st not in ["y", "Y", "n", "N"]:
         st = input("Вывести результаты исследования для данного k? 'y/n'")
     if st in ["Y", "y"]:
-        razl(N, L, k , mx = mx)
+        mean_of_razl(m, N, L, k, mx = mx)
 
 
 def main():
     global corr
     global bin_1
-    bin_1 = True
+    bin_1 = False
     st = ""
     while st not in ["y", "Y", "n", "N"]:
         st = input("Исследовать коррелированный сигнал? 'y/n' ")
@@ -389,7 +413,7 @@ def main():
             
         elif st == 3:
             Tlt = float(input("Введите необходимое значение Tlt - "))
-            opt_k_for_Tlt(N, L, Tlt, mx = mx)
+            opt_k_for_Tlt(N, L, Tlt, mx = mx, m = m)
     else:
         
         st = 0    
@@ -431,7 +455,7 @@ def main():
             out_table(N, L, mx = mx, m = m)
         elif st == 3:
             Tlt = float(input("Введите необходимое значение Tlt - "))
-            opt_k_for_Tlt(N, L, Tlt, mx = mx)
+            opt_k_for_Tlt(N, L, Tlt, mx = mx, m = m)
 
 
 if __name__ == "__main__":
