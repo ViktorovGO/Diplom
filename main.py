@@ -156,6 +156,12 @@ def out_table(N, L, mx = 0, m = 0):
     k_lst =[i for i in range(k_l, k_r+1, shag)]
     df = pd.DataFrame({'k':k_lst})
     df2 = pd.DataFrame({'k':k_lst})
+    # for i in k_lst:
+    #     out_lst = mean_of_razl(m, N, L, i, mx = mx, out = 0)
+    #     lst[0].append(out_lst[0][0])
+    #     lst[1].append(out_lst[1][0])
+    #     lst[2].append(out_lst[2][0])
+    #     lst[3].append(out_lst[3][0])
     for j in [0.25, 0.5, 1, 1.5, 2, 2.5]:
         mx = 0.5+j
         lst = [[], [], [], []]
@@ -209,11 +215,11 @@ def razl(N, L, k, mx = 0, out=1):
                     k_p += 1
                 elif x[i] < med:
                     k_p = 0
-            elif corr and bin_1:
-                if x[i] == 1:
-                    k_p += 1
-                elif x[i] == 0:
-                    k_p = 0
+            # elif corr and bin_1:
+            #     if x[i] == 1:
+            #         k_p += 1
+            #     elif x[i] == 0:
+            #         k_p = 0
             else:
                 if x[i] >= med:
                     k_p += 1
