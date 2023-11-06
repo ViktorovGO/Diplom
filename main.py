@@ -4,6 +4,7 @@ from statistics import mean, median, stdev
 from gen_of_corr import get_corr_row
 import pandas as pd
 import numpy as np
+from scipy.signal import convolve
 import math 
 
 def unif_to_gauss(uniform_signal, N, m=None):
@@ -39,14 +40,15 @@ def add_correlation(norm_signal, b1, b2):
     """
     corr_norm_signal = []
     x1 = b1 * 0 + b2 * 0 + norm_signal[0]
-    x2 = b1 * x1 + b2 * 0 + norm_signal[1]
+    # x2 = b1 * x1 + b2 * 0 + norm_signal[1]
     corr_norm_signal.append(x1)
-    corr_norm_signal.append(x2)
+    # corr_norm_signal.append(x2)
 
-    for i in range(2, len(norm_signal)):
+    for i in range(1, len(norm_signal)):
         
         e = norm_signal[i]
-        x = b1 * corr_norm_signal[i-1] + b2 * corr_norm_signal[i-2] + e
+        # x = b1 * corr_norm_signal[i-1] + b2 * corr_norm_signal[i-2] + e
+        x = b1 * corr_norm_signal[i-1] + e
         corr_norm_signal.append(x)
 
     # corr_norm_signal = corr_norm_signal[2:]
@@ -57,6 +59,20 @@ def add_correlation(norm_signal, b1, b2):
     corr_norm_signal = ((np.array(corr_norm_signal) - mn) / std).tolist()
 
     return corr_norm_signal
+
+def add_correlation_filter(signal, desired_correlation_length=3):
+    # Создаем фильтр Гаусса для заданной длины корреляции
+    filter_length = int(6 * desired_correlation_length)  # Рекомендуется выбрать длину фильтра, кратную 6
+    filter_std = filter_length / (2 * np.sqrt(2 * np.log(2)))
+    gaussian_filter = np.exp(-(np.arange(filter_length) - filter_length // 2)**2 / (2 * filter_std**2))
+
+    # Нормализуем фильтр
+    gaussian_filter /= np.sum(gaussian_filter)
+
+    # Применяем фильтр Гаусса к сигналу для изменения его корреляции
+    modified_signal = convolve(signal, gaussian_filter, mode='same')
+
+    return modified_signal
 
 def get_auto_corr(timeSeries,k):
     '''
@@ -209,12 +225,15 @@ def razl(N, L, k, mx = 0, out=1):
         k_p = 0  # Число положительных серий
         Tlt = []  # Моменты времени ложных тревог
         Tr = []  # Моменты реальных тревог
+        signal_of_plus=[]
         for i in range(len(x)):
             if not corr:
                 if x[i] >= med:
                     k_p += 1
+                    signal_of_plus.append(1)
                 elif x[i] < med:
                     k_p = 0
+                    signal_of_plus.append(0)
             # elif corr and bin_1:
             #     if x[i] == 1:
             #         k_p += 1
@@ -223,8 +242,10 @@ def razl(N, L, k, mx = 0, out=1):
             else:
                 if x[i] >= med:
                     k_p += 1
+                    signal_of_plus.append(1)
                 elif x[i] < med:
                     k_p = 0
+                    signal_of_plus.append(0)
             if i == N:
                 k_p = 0
             if k_p >= k:
@@ -234,7 +255,7 @@ def razl(N, L, k, mx = 0, out=1):
                     Tr.append(i)
                 k_p = 0
         
-        return Tr
+        return Tr,signal_of_plus
     
     def get_signal(N, L, mx):
         """
@@ -253,7 +274,8 @@ def razl(N, L, k, mx = 0, out=1):
                 med = median(x)
                 x.extend(get_corr_row(L-N+1, lamida1 = b1, lamida2 = b2))
             else:
-                x_all = add_correlation(unif_to_gauss([(random.uniform(0,1))*1 for i in range(L)], L), b1 = b1, b2 = b2)
+                # x_all = add_correlation(unif_to_gauss([(random.uniform(0,1))*1 for i in range(L)], L), b1 = b1, b2 = b2)
+                x_all = add_correlation_filter(unif_to_gauss([(random.uniform(0,1))*1 for i in range(L)], L))
                 x = [i+0.5 for i in x_all[:N]]
                 med = median(x)
                 x.extend([i+mx for i in x_all[N:]])
@@ -261,7 +283,8 @@ def razl(N, L, k, mx = 0, out=1):
     
     x, med = get_signal(N, L, mx)
                 
-    Tr = opr_razl(x, med, k, N)
+    Tr,signal_of_plus = opr_razl(x, med, k, N)
+    
 
     razn = []  # Список разностей между ложными тревогами
 
@@ -315,7 +338,7 @@ def razl(N, L, k, mx = 0, out=1):
 
         else:
             if corr:
-                plot_auto_corr(np.array(x),20)
+                plot_auto_corr(np.array(signal_of_plus),30)
             fig, axs = plt.subplots(1,3)
             axs[1].hist(x[:N], bins = 20)
             axs[1].set_title('Гистограмма исходного сигнала', fontsize=15)
