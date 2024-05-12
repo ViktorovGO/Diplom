@@ -40,15 +40,15 @@ def add_correlation(norm_signal, b1, b2):
     """
     corr_norm_signal = []
     x1 = b1 * 0 + b2 * 0 + norm_signal[0]
-    # x2 = b1 * x1 + b2 * 0 + norm_signal[1]
+    x2 = b1 * x1 + b2 * 0 + norm_signal[1]
     corr_norm_signal.append(x1)
     # corr_norm_signal.append(x2)
 
     for i in range(1, len(norm_signal)):
         
         e = norm_signal[i]
-        # x = b1 * corr_norm_signal[i-1] + b2 * corr_norm_signal[i-2] + e
-        x = b1 * corr_norm_signal[i-1] + e
+        x = b1 * corr_norm_signal[i-1] + b2 * corr_norm_signal[i-2] + e
+        # x = b1 * corr_norm_signal[i-1] + e
         corr_norm_signal.append(x)
 
     # corr_norm_signal = corr_norm_signal[2:]
@@ -60,19 +60,19 @@ def add_correlation(norm_signal, b1, b2):
 
     return corr_norm_signal
 
-def add_correlation_filter(signal, desired_correlation_length=3):
-    # Создаем фильтр Гаусса для заданной длины корреляции
-    filter_length = int(6 * desired_correlation_length)  # Рекомендуется выбрать длину фильтра, кратную 6
-    filter_std = filter_length / (2 * np.sqrt(2 * np.log(2)))
-    gaussian_filter = np.exp(-(np.arange(filter_length) - filter_length // 2)**2 / (2 * filter_std**2))
+# def add_correlation_filter(signal, desired_correlation_length=3):
+#     # Создаем фильтр Гаусса для заданной длины корреляции
+#     filter_length = int(6 * desired_correlation_length)  # Рекомендуется выбрать длину фильтра, кратную 6
+#     filter_std = filter_length / (2 * np.sqrt(2 * np.log(2)))
+#     gaussian_filter = np.exp(-(np.arange(filter_length) - filter_length // 2)**2 / (2 * filter_std**2))
 
-    # Нормализуем фильтр
-    gaussian_filter /= np.sum(gaussian_filter)
+#     # Нормализуем фильтр
+#     gaussian_filter /= np.sum(gaussian_filter)
 
-    # Применяем фильтр Гаусса к сигналу для изменения его корреляции
-    modified_signal = convolve(signal, gaussian_filter, mode='same')
+#     # Применяем фильтр Гаусса к сигналу для изменения его корреляции
+#     modified_signal = convolve(signal, gaussian_filter, mode='same')
 
-    return modified_signal
+#     return modified_signal
 
 def get_auto_corr(timeSeries,k):
     '''
@@ -158,9 +158,7 @@ def mean_of_razl(m, N, L, k, mx = 0, out = 0):
     lst[2].append(res_list[2])
     lst[3].append(res_list[3])
     res_list.clear()
-    print("Результаты моделирования:")
-    print(f'Среднее время между ложными тревогами - {lst[1]}')
-    print(f'Среднее время запаздывания - {lst[2]}')
+    
     return lst
 
 
@@ -178,6 +176,7 @@ def out_table(N, L, mx = 0, m = 0):
     #     lst[1].append(out_lst[1][0])
     #     lst[2].append(out_lst[2][0])
     #     lst[3].append(out_lst[3][0])
+    # df[f'{mx}'] = lst[2]
     for j in [0.25, 0.5, 1, 1.5, 2, 2.5]:
         mx = 0.5+j
         lst = [[], [], [], []]
@@ -274,8 +273,9 @@ def razl(N, L, k, mx = 0, out=1):
                 med = median(x)
                 x.extend(get_corr_row(L-N+1, lamida1 = b1, lamida2 = b2))
             else:
-                # x_all = add_correlation(unif_to_gauss([(random.uniform(0,1))*1 for i in range(L)], L), b1 = b1, b2 = b2)
-                x_all = add_correlation_filter(unif_to_gauss([(random.uniform(0,1))*1 for i in range(L)], L))
+                # print(b1,b2)
+                x_all = add_correlation(unif_to_gauss([(random.uniform(0,1))*1 for i in range(L)], L), b1 = b1, b2 = b2)
+                # x_all = add_correlation_filter(unif_to_gauss([(random.uniform(0,1))*1 for i in range(L)], L))
                 x = [i+0.5 for i in x_all[:N]]
                 med = median(x)
                 x.extend([i+mx for i in x_all[N:]])
@@ -407,7 +407,8 @@ def main():
     st = ""
     while st not in ["y", "Y", "n", "N"]:
         st = input("Исследовать коррелированный сигнал? 'y/n' ")
-    m = int(input("Введите по скольким значениям проводить усреднение - "))
+    # m = int(input("Введите по скольким значениям проводить усреднение - "))
+    m = 100
     if st in ['Y','y']:
         corr = True
     else:
@@ -446,27 +447,32 @@ def main():
     else:
         
         st = 0    
-        while st not in [1, 2, 3]:
+        while st not in [1, 2, 3, 4]:
             st = int(input("""
             1-Определение разладки  
             2-Построить таблицу зависимостей 
             3-Определение оптимального k для заданного Tlt' 
             """))
         global b1, b2
-        b1, b2 = map(float, input("Введите коэффициенты для рекуррентного соотношения через запятую (b1,b2) - ").split(','))
+        if st !=4:
+            b1, b2 = map(float, input("Введите коэффициенты для рекуррентного соотношения через запятую (b1,b2) - ").split(','))
         if not bin_1:
-            N = int(input("Введите с какого отсчёта пойдёт разладка - "))
-            mx = float(input(
-            "Введите медиану процесса начиная с момента заданной разладки(исходная=0.5) - "))
+            # N = int(input("Введите с какого отсчёта пойдёт разладка - "))
+            N = 5000
+            # mx = float(input(
+            # "Введите медиану процесса начиная с момента заданной разладки(исходная=0.5) - "))
+            mx = 0.7
 
-        L = int(input("Введите общее число отсчётов - "))
+        # L = int(input("Введите общее число отсчётов - "))
+        L = 10000
         
         if bin_1:
             N = L
             mx = 0
 
         if st == 1:
-            k = int(input("Введите длину серий успехов - "))
+            # k = int(input("Введите длину серий успехов - "))
+            k = 5
             print(f'B1={b1}, B2={b2}')
             razl(N, L, k, mx = mx)
             mean_of_razl(m, N, L, k, mx = mx)
@@ -485,6 +491,21 @@ def main():
         elif st == 3:
             Tlt = float(input("Введите необходимое значение Tlt - "))
             opt_k_for_Tlt(N, L, Tlt, mx = mx, m = m)
+
+        elif st == 4:
+            k = 7
+            b_1 = [0.45,0.35,0.25,0.2,-0.2,-0.25,-0.35,-0.45]
+            b_2 = [0.45,0.35,0.25,0.2,-0.2,-0.25,-0.35,-0.45]
+            df = pd.DataFrame({'b1':b_1})
+            for i in b_2:
+                t_zap = []
+                for j in b_1:
+                    b1 = j
+                    b2 = i
+                    t_zap.append(mean_of_razl(m, N, L, k, mx = mx)[2][0])
+                df[f'{b2}'] = t_zap
+            df.to_excel("table_to_surface.xlsx", sheet_name="sheet_1", header=False)
+
 
 
 if __name__ == "__main__":
